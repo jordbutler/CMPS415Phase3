@@ -4,8 +4,10 @@ const app = express()
 const bodyParser = require('body-parser')
 const MongoClient = require('mongodb').MongoClient
 const connectionString = "mongodb+srv://w0708515:KvvngAcid253@jbdb.wr4nvvi.mongodb.net/?retryWrites=true&w=majority"
+var js2xmlparser = require("js2xmlparser");
+const { error } = require('console');
 
-console.log('May Node be with you')
+
 
 app.listen(3000, function () {
   console.log('listening on 3000')
@@ -32,7 +34,72 @@ MongoClient.connect(connectionString, { useUnifiedTopology: true })
           res.end();
         });
     })
+
+    app.get("/ticket/list/", function(req, res){
+      //establish the new connection with the mongodb
+  
+      async function run() {
+          try {
+              
+          
+              const query = {}; //this means that all tickets are selected
+          
+              //tickets is an array that holds all tickets that are of type JSON
+              const tickets = await collection.find(query).toArray(); 
+              //if array is 0 there's no tickets
+              if (tickets.length === 0) {
+                  res.status(404).send("Tickets do not exist!");
+              } else {
+                  console.log(js2xmlparser.parse("tickets", tickets));
+                  //return the tickets
+                  res.json(js2xmlparser.parse("tickets", tickets));
+              }
+          } catch (err) {
+              console.log(err);
+              res.status(500).send("Error!");
+          }finally {
+              // Ensures that the client will close when you finish/error
+              await client.close();
+          }
+      }
+      run().catch(console.dir);
+  });
+
+  app.get("/rest/ticket/:ticketId", function(req, res) {
     
+    //search key is what we are looking for in the database JSON
+    //it needs to match the field "ticketID" and to match the value of that field
+    const searchKey = "ticketID: '" + req.params.ticketId + "'";
+    console.log("Looking for: " + searchKey);
+
+    async function run() {
+        try {
+            
+      
+            const query = { ticketID: req.params.ticketId };
+      
+            //find the ticket and store it in "ticket"
+            const ticket = await collection.findOne(query);
+            //checking if ticket exists
+            if (ticket === null) { //it's null when it doesn't exist
+                res.status(404).send("Ticket does not exist!");
+            } else {
+                console.log(js2xmlparser.parse("tickets", ticket));
+                //return the ticket
+                res.json(js2xmlparser.parse("tickets", ticket));
+            }
+        } catch (err) {
+            console.log(err);
+            res.status(500).send("Error!")
+        } finally {
+            // Ensures that the client will close when you finish/error
+            await client.close();
+        }
+    }
+    run().catch(console.dir);
+});
+
+
     app.post("/tickets", function(req, res) {
       
   
@@ -72,7 +139,12 @@ MongoClient.connect(connectionString, { useUnifiedTopology: true })
               //here we don't handle much errors because all fields are pre-filled so if a mistake has been made
               //the ticket should be deleted and then added again
               const addTicket = await collection.insertOne(ticket);
+             // const xml = json2xml(ticket, { compact: true, spaces: 4 });
               console.log(addTicket);
+             // console.log(xml);
+              //console.log(js2xmlparser.parse("ticket", ticket));
+              //console.log(js2xmlparser.parse("ticket", ticket));
+              console.log('Parsed XML: ' + JSON.stringify(req.body));
               res.json(ticket);
           } catch (err) {
               console.log(err);
